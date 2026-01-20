@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kakao Demo Chat</title>
+<title>Kakao Chat Demo</title>
 
 <style>
 
@@ -17,9 +17,10 @@ font-family:system-ui;
 max-width:430px;
 height:100vh;
 margin:auto;
+background:#b2c7da;
 display:flex;
 flex-direction:column;
-background:#b2c7da;
+overflow:hidden;
 }
 
 /* LOGIN */
@@ -30,6 +31,12 @@ display:flex;
 flex-direction:column;
 justify-content:center;
 padding:25px;
+animation:fadeIn .5s ease;
+}
+
+@keyframes fadeIn{
+from{opacity:0; transform:translateY(30px);}
+to{opacity:1; transform:translateY(0);}
 }
 
 .login input{
@@ -56,6 +63,16 @@ text-align:center;
 font-weight:bold;
 }
 
+/* NOTICE */
+
+.notice{
+background:#333;
+color:white;
+text-align:center;
+padding:6px;
+font-size:13px;
+}
+
 /* CHAT */
 
 .chatbox{
@@ -72,6 +89,7 @@ padding:10px;
 border-radius:15px;
 margin:5px 0;
 font-size:14px;
+word-break:break-word;
 }
 
 .me{
@@ -84,6 +102,12 @@ border-bottom-right-radius:0;
 background:white;
 align-self:flex-start;
 border-bottom-left-radius:0;
+}
+
+.name{
+font-size:11px;
+opacity:.6;
+margin-bottom:3px;
 }
 
 .time{
@@ -101,11 +125,13 @@ padding:7px;
 background:#eee;
 }
 
-.inputbar input{
+.inputbar textarea{
 flex:1;
 border:none;
 border-radius:20px;
 padding:10px;
+resize:none;
+height:40px;
 }
 
 .inputbar button{
@@ -116,12 +142,28 @@ background:#fee500;
 padding:10px 15px;
 }
 
-.notice{
-background:#333;
-color:white;
-text-align:center;
-padding:6px;
-font-size:13px;
+/* PROFILE */
+
+.profile{
+display:flex;
+align-items:center;
+gap:10px;
+padding:8px;
+background:#dfeaf5;
+}
+
+.profile img{
+width:40px;
+height:40px;
+border-radius:50%;
+object-fit:cover;
+border:2px solid #fee500;
+}
+
+.adminTag{
+color:red;
+font-size:12px;
+font-weight:bold;
 }
 
 </style>
@@ -132,23 +174,34 @@ font-size:13px;
 <div class="app">
 
 <!-- LOGIN -->
+
 <div id="login" class="login">
 <h2>CHAT LOGIN</h2>
 <input id="username" placeholder="닉네임">
+<input type="file" id="profileInput">
 <button onclick="login()">ENTER</button>
 </div>
 
 <!-- CHAT -->
+
 <div id="chat" style="display:none">
 
 <div class="header">CHAT ROOM</div>
+
+<div class="profile">
+<img id="profileImg">
+<div>
+<span id="profileName"></span>
+<span id="adminBadge" class="adminTag"></span>
+</div>
+</div>
+
 <div id="notice" class="notice">📢 공지 : 환영합니다</div>
 
 <div id="chatbox" class="chatbox"></div>
 
 <div class="inputbar">
-<input type="file" id="file">
-<input id="msg" placeholder="메시지 입력">
+<textarea id="msg" placeholder="메시지 입력"></textarea>
 <button onclick="send()">➤</button>
 </div>
 
@@ -158,27 +211,86 @@ font-size:13px;
 
 <script>
 
-let user = "";
+// DATA
+
+let user = localStorage.getItem("user");
+let profile = localStorage.getItem("profile");
+let isAdmin = false;
+
 let chatData = JSON.parse(localStorage.getItem("chat")) || [];
+
+// AUTO LOGIN
+
+if(user){
+ openChat();
+}
 
 // LOGIN
 
 function login(){
- user = username.value;
+
+ const name = username.value.trim();
+ if(name===""){
+  alert("닉네임 입력해줘");
+  return;
+ }
+
+ user = name;
  localStorage.setItem("user",user);
+
+ if(profileInput.files[0]){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+   localStorage.setItem("profile",reader.result);
+   profile = reader.result;
+   openChat();
+  };
+  reader.readAsDataURL(profileInput.files[0]);
+ }else{
+  openChat();
+ }
+
+}
+
+// OPEN CHAT
+
+function openChat(){
 
  login.style.display="none";
  chat.style.display="block";
 
+ profileName.innerText = user;
+
+ if(profile){
+  profileImg.src = profile;
+ }else{
+  profileImg.src = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+ }
+
+ // ADMIN MODE
+ if(user === "admin"){
+  isAdmin = true;
+  adminBadge.innerText = " (ADMIN)";
+ }
+
  loadChat();
 }
 
-// SEND
+// SEND MESSAGE
 
 function send(){
 
- const text = msg.value;
+ const text = msg.value.trim();
  if(text==="") return;
+
+ // ADMIN NOTICE COMMAND
+ if(isAdmin && text.startsWith("/공지 ")){
+  const noticeText = text.replace("/공지 ","");
+  localStorage.setItem("notice",noticeText);
+  notice.innerText = "📢 공지 : " + noticeText;
+  msg.value="";
+  return;
+ }
 
  chatData.push({
   name:user,
@@ -203,8 +315,8 @@ function loadChat(){
   div.className = "msg "+(data.name===user?"me":"you");
 
   div.innerHTML = `
-   <b>${data.name}</b><br>
-   ${data.msg}
+   <div class="name">${data.name}</div>
+   ${data.msg.replace(/\n/g,"<br>")}
    <div class="time">${data.time}</div>
   `;
 
@@ -213,6 +325,32 @@ function loadChat(){
 
  chatbox.scrollTop = chatbox.scrollHeight;
 }
+
+// LOAD NOTICE
+
+const savedNotice = localStorage.getItem("notice");
+if(savedNotice){
+ notice.innerText = "📢 공지 : " + savedNotice;
+}
+
+// ENTER / SHIFT+ENTER
+
+msg.addEventListener("keydown",function(e){
+
+ if(e.key==="Enter" && !e.shiftKey){
+  e.preventDefault();
+  send();
+ }
+
+});
+
+// LOGIN ENTER KEY
+
+username.addEventListener("keydown",function(e){
+ if(e.key==="Enter"){
+  login();
+ }
+});
 
 </script>
 
