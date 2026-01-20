@@ -31,11 +31,11 @@ display:flex;
 flex-direction:column;
 justify-content:center;
 padding:25px;
-animation:fadeIn .5s ease;
+animation:fadeIn .4s ease;
 }
 
 @keyframes fadeIn{
-from{opacity:0; transform:translateY(30px);}
+from{opacity:0; transform:translateY(20px);}
 to{opacity:1; transform:translateY(0);}
 }
 
@@ -60,6 +60,30 @@ font-weight:bold;
 padding:12px;
 background:#a5c4dd;
 text-align:center;
+font-weight:bold;
+}
+
+/* PROFILE */
+
+.profile{
+display:flex;
+align-items:center;
+gap:10px;
+padding:8px;
+background:#dfeaf5;
+}
+
+.profile img{
+width:40px;
+height:40px;
+border-radius:50%;
+border:2px solid #fee500;
+object-fit:cover;
+}
+
+.adminTag{
+color:red;
+font-size:12px;
 font-weight:bold;
 }
 
@@ -142,30 +166,6 @@ background:#fee500;
 padding:10px 15px;
 }
 
-/* PROFILE */
-
-.profile{
-display:flex;
-align-items:center;
-gap:10px;
-padding:8px;
-background:#dfeaf5;
-}
-
-.profile img{
-width:40px;
-height:40px;
-border-radius:50%;
-object-fit:cover;
-border:2px solid #fee500;
-}
-
-.adminTag{
-color:red;
-font-size:12px;
-font-weight:bold;
-}
-
 </style>
 </head>
 
@@ -174,17 +174,15 @@ font-weight:bold;
 <div class="app">
 
 <!-- LOGIN -->
-
-<div id="login" class="login">
+<div id="loginBox" class="login">
 <h2>CHAT LOGIN</h2>
 <input id="username" placeholder="닉네임">
 <input type="file" id="profileInput">
-<button onclick="login()">ENTER</button>
+<button id="loginBtn">ENTER</button>
 </div>
 
 <!-- CHAT -->
-
-<div id="chat" style="display:none">
+<div id="chatBoxWrap" style="display:none">
 
 <div class="header">CHAT ROOM</div>
 
@@ -202,7 +200,7 @@ font-weight:bold;
 
 <div class="inputbar">
 <textarea id="msg" placeholder="메시지 입력"></textarea>
-<button onclick="send()">➤</button>
+<button id="sendBtn">➤</button>
 </div>
 
 </div>
@@ -211,53 +209,70 @@ font-weight:bold;
 
 <script>
 
-// DATA
+// ---------- DATA ----------
 
-let user = localStorage.getItem("user");
-let profile = localStorage.getItem("profile");
+let user = localStorage.getItem("user") || "";
+let profile = localStorage.getItem("profile") || "";
+let chatData = JSON.parse(localStorage.getItem("chat")) || [];
 let isAdmin = false;
 
-let chatData = JSON.parse(localStorage.getItem("chat")) || [];
+// ---------- DOM ----------
 
-// AUTO LOGIN
+const loginBox = document.getElementById("loginBox");
+const chatWrap = document.getElementById("chatBoxWrap");
+
+const usernameInput = document.getElementById("username");
+const profileInput = document.getElementById("profileInput");
+
+const loginBtn = document.getElementById("loginBtn");
+
+const chatbox = document.getElementById("chatbox");
+const msgInput = document.getElementById("msg");
+const sendBtn = document.getElementById("sendBtn");
+
+const profileName = document.getElementById("profileName");
+const profileImg = document.getElementById("profileImg");
+const adminBadge = document.getElementById("adminBadge");
+const notice = document.getElementById("notice");
+
+// ---------- AUTO LOGIN ----------
 
 if(user){
  openChat();
 }
 
-// LOGIN
+// ---------- LOGIN ----------
 
 function login(){
 
- const name = username.value.trim();
- if(name===""){
+ const name = usernameInput.value.trim();
+ if(name === ""){
   alert("닉네임 입력해줘");
   return;
  }
 
  user = name;
- localStorage.setItem("user",user);
+ localStorage.setItem("user", user);
 
  if(profileInput.files[0]){
   const reader = new FileReader();
-  reader.onload = ()=>{
-   localStorage.setItem("profile",reader.result);
+  reader.onload = function(){
    profile = reader.result;
+   localStorage.setItem("profile", profile);
    openChat();
   };
   reader.readAsDataURL(profileInput.files[0]);
  }else{
   openChat();
  }
-
 }
 
-// OPEN CHAT
+// ---------- OPEN CHAT ----------
 
 function openChat(){
 
- login.style.display="none";
- chat.style.display="block";
+ loginBox.style.display = "none";
+ chatWrap.style.display = "block";
 
  profileName.innerText = user;
 
@@ -267,28 +282,32 @@ function openChat(){
   profileImg.src = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
  }
 
- // ADMIN MODE
  if(user === "admin"){
   isAdmin = true;
   adminBadge.innerText = " (ADMIN)";
  }
 
+ const savedNotice = localStorage.getItem("notice");
+ if(savedNotice){
+  notice.innerText = "📢 공지 : " + savedNotice;
+ }
+
  loadChat();
 }
 
-// SEND MESSAGE
+// ---------- SEND ----------
 
 function send(){
 
- const text = msg.value.trim();
- if(text==="") return;
+ const text = msgInput.value.trim();
+ if(text === "") return;
 
- // ADMIN NOTICE COMMAND
+ // ADMIN NOTICE
  if(isAdmin && text.startsWith("/공지 ")){
   const noticeText = text.replace("/공지 ","");
-  localStorage.setItem("notice",noticeText);
+  localStorage.setItem("notice", noticeText);
   notice.innerText = "📢 공지 : " + noticeText;
-  msg.value="";
+  msgInput.value="";
   return;
  }
 
@@ -298,12 +317,12 @@ function send(){
   time:new Date().toLocaleTimeString()
  });
 
- localStorage.setItem("chat",JSON.stringify(chatData));
- msg.value="";
+ localStorage.setItem("chat", JSON.stringify(chatData));
+ msgInput.value="";
  loadChat();
 }
 
-// LOAD CHAT
+// ---------- LOAD CHAT ----------
 
 function loadChat(){
 
@@ -312,7 +331,7 @@ function loadChat(){
  chatData.forEach(data=>{
 
   const div = document.createElement("div");
-  div.className = "msg "+(data.name===user?"me":"you");
+  div.className = "msg " + (data.name === user ? "me" : "you");
 
   div.innerHTML = `
    <div class="name">${data.name}</div>
@@ -326,33 +345,33 @@ function loadChat(){
  chatbox.scrollTop = chatbox.scrollHeight;
 }
 
-// LOAD NOTICE
+// ---------- EVENTS ----------
 
-const savedNotice = localStorage.getItem("notice");
-if(savedNotice){
- notice.innerText = "📢 공지 : " + savedNotice;
-}
+// LOGIN BUTTON
+loginBtn.onclick = login;
 
-// ENTER / SHIFT+ENTER
+// LOGIN ENTER
+usernameInput.addEventListener("keydown",function(e){
+ if(e.key === "Enter"){
+  login();
+ }
+});
 
-msg.addEventListener("keydown",function(e){
+// SEND BUTTON
+sendBtn.onclick = send;
 
- if(e.key==="Enter" && !e.shiftKey){
+// CHAT ENTER
+msgInput.addEventListener("keydown",function(e){
+
+ if(e.key === "Enter" && !e.shiftKey){
   e.preventDefault();
   send();
  }
 
 });
 
-// LOGIN ENTER KEY
-
-username.addEventListener("keydown",function(e){
- if(e.key==="Enter"){
-  login();
- }
-});
-
 </script>
 
 </body>
 </html>
+
