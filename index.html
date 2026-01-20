@@ -63,14 +63,21 @@ text-align:center;
 font-weight:bold;
 }
 
-/* PROFILE */
+/* PROFILE BAR */
 
 .profile{
 display:flex;
 align-items:center;
+justify-content:space-between;
 gap:10px;
 padding:8px;
 background:#dfeaf5;
+}
+
+.profileLeft{
+display:flex;
+align-items:center;
+gap:10px;
 }
 
 .profile img{
@@ -85,6 +92,14 @@ object-fit:cover;
 color:red;
 font-size:12px;
 font-weight:bold;
+}
+
+.settingBtn{
+font-size:12px;
+background:#fee500;
+border:none;
+border-radius:10px;
+padding:5px 10px;
 }
 
 /* NOTICE */
@@ -126,6 +141,15 @@ border-bottom-right-radius:0;
 background:white;
 align-self:flex-start;
 border-bottom-left-radius:0;
+display:flex;
+gap:7px;
+}
+
+.you img{
+width:32px;
+height:32px;
+border-radius:50%;
+object-fit:cover;
 }
 
 .name{
@@ -174,6 +198,7 @@ padding:10px 15px;
 <div class="app">
 
 <!-- LOGIN -->
+
 <div id="loginBox" class="login">
 <h2>CHAT LOGIN</h2>
 <input id="username" placeholder="닉네임">
@@ -182,16 +207,21 @@ padding:10px 15px;
 </div>
 
 <!-- CHAT -->
-<div id="chatBoxWrap" style="display:none">
+
+<div id="chatWrap" style="display:none">
 
 <div class="header">CHAT ROOM</div>
 
 <div class="profile">
+<div class="profileLeft">
 <img id="profileImg">
 <div>
 <span id="profileName"></span>
 <span id="adminBadge" class="adminTag"></span>
 </div>
+</div>
+
+<button class="settingBtn" onclick="editProfile()">프로필</button>
 </div>
 
 <div id="notice" class="notice">📢 공지 : 환영합니다</div>
@@ -219,7 +249,7 @@ let isAdmin = false;
 // ---------- DOM ----------
 
 const loginBox = document.getElementById("loginBox");
-const chatWrap = document.getElementById("chatBoxWrap");
+const chatWrap = document.getElementById("chatWrap");
 
 const usernameInput = document.getElementById("username");
 const profileInput = document.getElementById("profileInput");
@@ -246,33 +276,47 @@ if(user){
 function login(){
 
  const name = usernameInput.value.trim();
- if(name === ""){
+ if(name===""){
   alert("닉네임 입력해줘");
   return;
  }
 
  user = name;
- localStorage.setItem("user", user);
+ localStorage.setItem("user",user);
 
  if(profileInput.files[0]){
   const reader = new FileReader();
-  reader.onload = function(){
+  reader.onload = ()=>{
    profile = reader.result;
-   localStorage.setItem("profile", profile);
+   localStorage.setItem("profile",profile);
    openChat();
   };
   reader.readAsDataURL(profileInput.files[0]);
  }else{
   openChat();
  }
+
+}
+
+// ---------- PROFILE EDIT ----------
+
+function editProfile(){
+
+ const newName = prompt("닉네임 변경",user);
+ if(newName){
+  user = newName;
+  localStorage.setItem("user",user);
+  profileName.innerText = user;
+ }
+
 }
 
 // ---------- OPEN CHAT ----------
 
 function openChat(){
 
- loginBox.style.display = "none";
- chatWrap.style.display = "block";
+ loginBox.style.display="none";
+ chatWrap.style.display="block";
 
  profileName.innerText = user;
 
@@ -282,14 +326,14 @@ function openChat(){
   profileImg.src = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
  }
 
- if(user === "admin"){
-  isAdmin = true;
-  adminBadge.innerText = " (ADMIN)";
+ if(user==="admin"){
+  isAdmin=true;
+  adminBadge.innerText=" (ADMIN)";
  }
 
  const savedNotice = localStorage.getItem("notice");
  if(savedNotice){
-  notice.innerText = "📢 공지 : " + savedNotice;
+  notice.innerText="📢 공지 : "+savedNotice;
  }
 
  loadChat();
@@ -300,24 +344,24 @@ function openChat(){
 function send(){
 
  const text = msgInput.value.trim();
- if(text === "") return;
+ if(text==="") return;
 
- // ADMIN NOTICE
  if(isAdmin && text.startsWith("/공지 ")){
   const noticeText = text.replace("/공지 ","");
-  localStorage.setItem("notice", noticeText);
-  notice.innerText = "📢 공지 : " + noticeText;
+  localStorage.setItem("notice",noticeText);
+  notice.innerText="📢 공지 : "+noticeText;
   msgInput.value="";
   return;
  }
 
  chatData.push({
   name:user,
+  profile:profile,
   msg:text,
   time:new Date().toLocaleTimeString()
  });
 
- localStorage.setItem("chat", JSON.stringify(chatData));
+ localStorage.setItem("chat",JSON.stringify(chatData));
  msgInput.value="";
  loadChat();
 }
@@ -330,48 +374,61 @@ function loadChat(){
 
  chatData.forEach(data=>{
 
-  const div = document.createElement("div");
-  div.className = "msg " + (data.name === user ? "me" : "you");
+  if(data.name === user){
 
-  div.innerHTML = `
-   <div class="name">${data.name}</div>
-   ${data.msg.replace(/\n/g,"<br>")}
-   <div class="time">${data.time}</div>
-  `;
+   const div = document.createElement("div");
+   div.className="msg me";
 
-  chatbox.appendChild(div);
+   div.innerHTML=`
+    ${data.msg.replace(/\n/g,"<br>")}
+    <div class="time">${data.time}</div>
+   `;
+
+   chatbox.appendChild(div);
+
+  }else{
+
+   const div = document.createElement("div");
+   div.className="msg you";
+
+   div.innerHTML=`
+    <img src="${data.profile || 'https://cdn-icons-png.flaticon.com/512/847/847969.png'}">
+    <div>
+     <div class="name">${data.name}</div>
+     ${data.msg.replace(/\n/g,"<br>")}
+     <div class="time">${data.time}</div>
+    </div>
+   `;
+
+   chatbox.appendChild(div);
+
+  }
+
  });
 
- chatbox.scrollTop = chatbox.scrollHeight;
+ chatbox.scrollTop=chatbox.scrollHeight;
 }
 
 // ---------- EVENTS ----------
 
-// LOGIN BUTTON
 loginBtn.onclick = login;
 
-// LOGIN ENTER
-usernameInput.addEventListener("keydown",function(e){
- if(e.key === "Enter"){
-  login();
- }
+usernameInput.addEventListener("keydown",e=>{
+ if(e.key==="Enter") login();
 });
 
-// SEND BUTTON
 sendBtn.onclick = send;
 
-// CHAT ENTER
-msgInput.addEventListener("keydown",function(e){
-
- if(e.key === "Enter" && !e.shiftKey){
+msgInput.addEventListener("keydown",e=>{
+ if(e.key==="Enter" && !e.shiftKey){
   e.preventDefault();
   send();
  }
-
 });
 
 </script>
 
 </body>
 </html>
+
 
